@@ -20,7 +20,17 @@ var Usuario = require('../models/usuario');
 // ====================================
 app.get('/', (req, res, next) => {
 
+    // Para paginar usamos una variable que desde angular se enviara opcional, localhost:3000/usuario?desde=10
+    // Esa variable tenemos que forzarla para que sea un numero, en Angular se controlara no dejar al usuario escribir letras
+    // Es Angular el responsable de saber cual es el parametro opcional con el sitio por donde vamos, en node solamente le decimos a moongose
+    // que se salta los X objetos que especificamos en desde. Para esto usamos la fucion skip()
+    // Tambien usamos la funcion limit para especificar los que mostramos en pantalla
+    var desde = req.query.desde || 0;
+    desde = Number(desde);
+
     Usuario.find({}, 'nombre email img role') // Pasamos los campos que queremos recuperar como un string de palabras
+        .skip(desde)
+        .limit(5)
         .exec((err, usuarios) => {
             if (err) {
                 return res.status(500).json({
@@ -30,10 +40,23 @@ app.get('/', (req, res, next) => {
                 });
             }
 
-            res.status(200).json({
-                ok: true,
-                usuarios: usuarios // Con el standar de EcmaScript6 aqui seria suficiente con poner el objeto usuarios y por defecto le daria el nombre, pero asi es mas claro
-            });
+            // Para la paginacion tambien enviamos en la respuesta el total de registros, para eso usamos la funcion count del modelo, y dentro de la funcion
+            // devolvemos el response.
+            Usuario.count({}, (err, total) => {
+                if (err) {
+                    return res.status(500).json({
+                        ok: false,
+                        mensaje: 'Error contando usuarios',
+                        errors: err
+                    });
+                }
+
+                res.status(200).json({
+                    ok: true,
+                    usuarios: usuarios, // Con el standar de EcmaScript6 aqui seria suficiente con poner el objeto usuarios y por defecto le daria el nombre, pero asi es mas claro
+                    total: total
+                });
+            })
         }); // cierra exec
 }); // cierra app
 
